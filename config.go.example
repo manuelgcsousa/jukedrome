@@ -1,0 +1,13 @@
+package main
+
+const (
+	apiVersion = "1.16.1"
+	clientName = "jukedrome"
+
+	serverUrl = "http://127.0.0.1:4533"
+	username  = "your-username"
+	password  = "your-password"
+
+	fzfBin = "fzf"
+	mpvBin = "mpv"
+)
