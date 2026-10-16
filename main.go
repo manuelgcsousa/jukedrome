@@ -30,7 +30,7 @@ var (
 type item struct {
 	ID    string
 	Label string
-	Name  string
+	Crumb string
 }
 
 type subsonicResponse struct {
@@ -108,7 +108,7 @@ func browse() error {
 		if err != nil {
 			return err
 		}
-		artist, err := fzf(artists, "artist > ")
+		artist, err := fzf(artists, "Artist › ")
 		if errors.Is(err, errAborted) {
 			return nil
 		}
@@ -124,7 +124,7 @@ func browse() error {
 			if err != nil {
 				return err
 			}
-			album, err := fzf(albums, fmt.Sprintf("albums (by %q) > ", artist.Name))
+			album, err := fzf(albums, fmt.Sprintf("%s › ", artist.Crumb))
 			if errors.Is(err, errAborted) {
 				break
 			}
@@ -140,7 +140,7 @@ func browse() error {
 				if err != nil {
 					return err
 				}
-				song, err := fzf(songs, fmt.Sprintf("songs (from %q by %q) > ", album.Name, artist.Name))
+				song, err := fzf(songs, fmt.Sprintf("%s › %s › ", artist.Crumb, album.Crumb))
 				if errors.Is(err, errAborted) {
 					break
 				}
@@ -218,7 +218,7 @@ func getArtists() ([]item, error) {
 	if resp.Artists != nil {
 		for _, index := range resp.Artists.Index {
 			for _, artist := range index.Artist {
-				items = append(items, item{ID: artist.ID, Label: artist.Name, Name: artist.Name})
+				items = append(items, item{ID: artist.ID, Label: artist.Name, Crumb: artist.Name})
 			}
 		}
 	}
@@ -238,8 +238,9 @@ func getAlbums(artistID string) ([]item, error) {
 			if album.Year > 0 {
 				year = strconv.Itoa(album.Year)
 			}
-			label := fmt.Sprintf("%s (%s) - %d songs", album.Name, year, album.SongCount)
-			items = append(items, item{ID: album.ID, Label: label, Name: album.Name})
+			label := fmt.Sprintf("%s (%s) · %d songs", album.Name, year, album.SongCount)
+			crumb := fmt.Sprintf("%s (%s)", album.Name, year)
+			items = append(items, item{ID: album.ID, Label: label, Crumb: crumb})
 		}
 	}
 	return items, nil
