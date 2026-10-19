@@ -2,14 +2,15 @@
 
 A tiny fzf-driven jukebox for [Navidrome](https://www.navidrome.org/).
 
-It lets you browse your music (artists --> albums --> songs) with `fzf`. Picking a track queues the whole album in `mpv`, starting from that track.
+It lets you browse your music library (artists --> albums --> songs) with `fzf`.
+Picking a track queues the whole album in `mpv`, starting from that track.
 
 ## Requirements
 
-- Go
+- A running Navidrome server
+- [go](https://go.dev/dl/) (for building with your configuration details)
 - [fzf](https://github.com/junegunn/fzf)
 - [mpv](https://mpv.io/)
-- A running Navidrome server
 
 ## Setup
 
@@ -22,6 +23,8 @@ password  = "your-password"
 
 fzfBin = "fzf"
 mpvBin = "mpv"
+
+fzfRefreshKey = "ctrl-r"
 ```
 
 ## Build & run
@@ -32,10 +35,8 @@ just run
 
 ## Usage
 
-Run `jukedrome` and navigate:
-
-- Type to filter
-- Enter to select
-- Esc to go back (quits when at the artist list)
+```sh
+jukedrome --help
+```
 
 Pick a track and the whole album gets queued, starting from there. If `mpv` is already running, `jukedrome` reuses that instance.

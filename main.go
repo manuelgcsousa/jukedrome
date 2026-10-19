@@ -94,21 +94,34 @@ func main() {
 func printUsage() {
 	fmt.Print(`jukedrome - fzf-driven Navidrome jukebox
 
-Usage: jukedrome            browse artists --> albums --> songs and play the pick
-       jukedrome --help     show this help
+Usage:
+  jukedrome         Browse artists > albums > tracks and play
+  jukedrome --help  Show this help
 
-Keys in fzf: type to filter, Enter to select, Esc to go back (quits at artists).
-Selecting a track plays its album, starting from that track.
+Keys:
+  Enter       Select track
+  Esc/Ctrl-C  Go back (quits at artists)
+  Ctrl-R      Refetch section
+  Track       Play album from selected track
 `)
 }
 
 func browse() error {
+	var (
+		artists []item
+		albums  = map[string][]item{}
+		songs   = map[string][]item{}
+	)
+
 	for {
-		artists, err := getArtists()
-		if err != nil {
-			return err
+		if artists == nil {
+			loaded, err := getArtists()
+			if err != nil {
+				return err
+			}
+			artists = loaded
 		}
-		artist, err := fzf(artists, "Artist › ")
+		artist, refresh, err := fzf(artists, "Artist › ")
 		if errors.Is(err, errAborted) {
 			return nil
 		}
@@ -118,13 +131,24 @@ func browse() error {
 		if err != nil {
 			return err
 		}
+		if refresh {
+			artists = nil
+			albums = map[string][]item{}
+			songs = map[string][]item{}
+			continue
+		}
 
 		for {
-			albums, err := getAlbums(artist.ID)
-			if err != nil {
-				return err
+			cached, ok := albums[artist.ID]
+			if !ok {
+				loaded, err := getAlbums(artist.ID)
+				if err != nil {
+					return err
+				}
+				cached = loaded
+				albums[artist.ID] = cached
 			}
-			album, err := fzf(albums, fmt.Sprintf("%s › ", artist.Crumb))
+			album, refresh, err := fzf(cached, fmt.Sprintf("%s › ", artist.Crumb))
 			if errors.Is(err, errAborted) {
 				break
 			}
@@ -134,13 +158,25 @@ func browse() error {
 			if err != nil {
 				return err
 			}
+			if refresh {
+				for _, a := range albums[artist.ID] {
+					delete(songs, a.ID)
+				}
+				delete(albums, artist.ID)
+				continue
+			}
 
 			for {
-				songs, err := getSongs(album.ID)
-				if err != nil {
-					return err
+				cachedSongs, ok := songs[album.ID]
+				if !ok {
+					loaded, err := getSongs(album.ID)
+					if err != nil {
+						return err
+					}
+					cachedSongs = loaded
+					songs[album.ID] = cachedSongs
 				}
-				song, err := fzf(songs, fmt.Sprintf("%s › %s › ", artist.Crumb, album.Crumb))
+				song, refresh, err := fzf(cachedSongs, fmt.Sprintf("%s › %s › ", artist.Crumb, album.Crumb))
 				if errors.Is(err, errAborted) {
 					break
 				}
@@ -150,10 +186,14 @@ func browse() error {
 				if err != nil {
 					return err
 				}
+				if refresh {
+					delete(songs, album.ID)
+					continue
+				}
 
-				links := make([]string, len(songs))
+				links := make([]string, len(cachedSongs))
 				start := 0
-				for i, s := range songs {
+				for i, s := range cachedSongs {
 					links[i] = streamUrl(s.ID)
 					if s.ID == song.ID {
 						start = i
@@ -166,7 +206,7 @@ func browse() error {
 	}
 }
 
-func fzf(items []item, prompt string) (item, error) {
+func fzf(items []item, prompt string) (item, bool, error) {
 	var input strings.Builder
 	for _, it := range items {
 		fmt.Fprintf(&input, "%s\t%s\n", it.ID, it.Label)
@@ -177,8 +217,9 @@ func fzf(items []item, prompt string) (item, error) {
 		"--border",
 		"--height=50%",
 		"--delimiter=\t",
-		"--with-nth=2",
+		"--with-nth=2", // only render field nº2 (it.Label)
 		"--prompt=" + prompt,
+		"--expect=" + fzfRefreshKey,
 	}
 
 	cmd := exec.Command(fzfBin, args...)
@@ -191,21 +232,25 @@ func fzf(items []item, prompt string) (item, error) {
 		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
 			switch exitErr.ExitCode() {
 			case 130:
-				return item{}, errAborted
+				return item{}, false, errAborted
 			case 1:
-				return item{}, errNoMatch
+				return item{}, false, errNoMatch
 			}
 		}
-		return item{}, err
+		return item{}, false, err
 	}
 
-	id, _, _ := strings.Cut(strings.TrimRight(output.String(), "\n"), "\t")
+	lines := strings.Split(strings.TrimRight(output.String(), "\n"), "\n")
+	if len(lines) > 0 && lines[0] == fzfRefreshKey {
+		return item{}, true, nil
+	}
+	id, _, _ := strings.Cut(lines[len(lines)-1], "\t")
 	for _, it := range items {
 		if it.ID == id {
-			return it, nil
+			return it, false, nil
 		}
 	}
-	return item{}, errNoMatch
+	return item{}, false, errNoMatch
 }
 
 func getArtists() ([]item, error) {

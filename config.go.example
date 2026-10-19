@@ -10,4 +10,6 @@ const (
 
 	fzfBin = "fzf"
 	mpvBin = "mpv"
+
+	fzfRefreshKey = "ctrl-r"
 )
