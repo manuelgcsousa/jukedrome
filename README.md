@@ -2,7 +2,7 @@
 
 A tiny fzf-driven jukebox for [Navidrome](https://www.navidrome.org/).
 
-It lets you browse your music library (artists --> albums --> songs) with `fzf`.
+It lets you browse your music library (artists ~> albums ~> songs) with `fzf`.
 Picking a track queues the whole album in `mpv`, starting from that track.
 
 ## Requirements
@@ -14,7 +14,7 @@ Picking a track queues the whole album in `mpv`, starting from that track.
 
 ## Setup
 
-Adapt `config.go` with your details (the build will create it from `config.go.example` if it does not exist yet):
+Adapt `config.go` with your details (à la suckless). The build will create it from `config.go.example` if it does not exist yet:
 
 ```go
 serverUrl = "http://127.0.0.1:4533"
