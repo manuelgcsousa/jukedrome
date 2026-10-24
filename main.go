@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 var (
@@ -45,18 +46,17 @@ func main() {
 }
 
 func printUsage() {
-	fmt.Print(`jukedrome - fzf-driven Navidrome jukebox
+	fmt.Printf(`jukedrome - fzf-driven Navidrome jukebox
 
 Usage:
   jukedrome         Browse artists > albums > tracks and play
   jukedrome --help  Show this help
 
 Keys:
-  Enter       Select track
+  Enter       Select track (play album from selected track)
   Esc/Ctrl-C  Go back (quits at artists)
-  Ctrl-R      Refetch section
-  Track       Play album from selected track
-`)
+  %-10s  Refetch section
+`, titleKey(fzfRefreshKey))
 }
 
 func browse() error {
@@ -157,4 +157,15 @@ func browse() error {
 			}
 		}
 	}
+}
+
+func titleKey(key string) string {
+	parts := strings.Split(key, "-")
+	for i, part := range parts {
+		if part == "" {
+			continue
+		}
+		parts[i] = (strings.ToUpper(part[:1]) + part[1:])
+	}
+	return strings.Join(parts, "-")
 }
