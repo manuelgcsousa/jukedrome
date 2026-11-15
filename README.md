@@ -9,6 +9,7 @@ Picking a track queues the whole album in `mpv`, starting from that track.
 
 - A running Navidrome server
 - [go](https://go.dev/dl/) (for building with your configuration details)
+- [just](https://github.com/casey/just)
 - [fzf](https://github.com/junegunn/fzf)
 - [mpv](https://mpv.io/)
 
@@ -39,4 +40,4 @@ just run
 jukedrome --help
 ```
 
-Pick a track and the whole album gets queued, starting from there. If `mpv` is already running, `jukedrome` reuses that instance.
+Pick a track and the whole album gets queued, starting from there. If an `mpv` instance started by `jukedrome` is already running, it reuses that instance; otherwise, it starts a new one.
