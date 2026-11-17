@@ -16,10 +16,9 @@ func play(links []string, start int) {
 	if len(links) == 0 {
 		return
 	}
-	if loadIntoRunningMpv(links, start) {
+	if !stopRunningMpv() {
 		return
 	}
-	_ = os.Remove(mpvSocket)
 
 	args := make([]string, 0, len(links)+2)
 	args = append(args, "--input-ipc-server="+mpvSocket)
@@ -35,35 +34,34 @@ func play(links []string, start int) {
 	_ = cmd.Process.Release()
 }
 
-func loadIntoRunningMpv(links []string, start int) bool {
-	conn, err := net.Dial("unix", mpvSocket)
+func stopRunningMpv() bool {
+	conn, err := net.DialTimeout("unix", mpvSocket, 200*time.Millisecond)
 	if err != nil {
-		return false
+		_ = os.Remove(mpvSocket)
+		return true
 	}
-	defer conn.Close()
 
-	_ = conn.SetDeadline(time.Now().Add(2 * time.Second))
-	enc := json.NewEncoder(conn)
-
-	if err := enc.Encode(map[string]any{
-		"command": []string{"loadfile", links[0], "replace"},
+	_ = conn.SetDeadline(time.Now().Add(time.Second))
+	if err := json.NewEncoder(conn).Encode(map[string]any{
+		"command": []string{"quit"},
 	}); err != nil {
+		fmt.Fprintf(os.Stderr, "jukedrome: could not stop mpv: %v\n", err)
+		_ = conn.Close()
 		return false
 	}
-	for _, link := range links[1:] {
-		if err := enc.Encode(map[string]any{
-			"command": []string{"playlist-append", link},
-		}); err != nil {
-			return false
+	_ = conn.Close()
+
+	deadline := time.Now().Add(3 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := net.DialTimeout("unix", mpvSocket, 100*time.Millisecond)
+		if err != nil {
+			_ = os.Remove(mpvSocket)
+			return true
 		}
-	}
-	if start > 0 {
-		if err := enc.Encode(map[string]any{
-			"command": []any{"set_property", "playlist-pos", start},
-		}); err != nil {
-			return false
-		}
+		_ = conn.Close()
+		time.Sleep(50 * time.Millisecond)
 	}
 
-	return true
+	fmt.Fprintln(os.Stderr, "jukedrome: timed out waiting for mpv to stop")
+	return false
 }
